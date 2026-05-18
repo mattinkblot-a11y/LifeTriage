@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Life Triage">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<title>Life Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:   #0f172a;
+    --navy2:  #1e293b;
+    --navy3:  #334155;
+    --slate:  #64748b;
+    --muted:  #94a3b8;
+    --border: #e2e8f0;
+    --bg:     #f8f7f4;
+    --card:   #ffffff;
+    --red:    #dc2626;
+    --amber:  #d97706;
+    --gray:   #6b7280;
+    --green:  #16a34a;
+    --blue:   #2563eb;
+    --safe-top: env(safe-area-inset-top, 20px);
+    --safe-bot: env(safe-area-inset-bottom, 20px);
+  }
+  html, body { height: 100%; overflow: hidden; background: var(--navy); }
+  body { font-family: 'DM Sans', sans-serif; color: #1a1a2e; -webkit-font-smoothing: antialiased; }
+  h1, h2, .serif { font-family: 'DM Serif Display', serif; }
+  button { font-family: 'DM Sans', sans-serif; }
+  select { font-family: 'DM Sans', sans-serif; }
+  textarea { font-family: 'DM Sans', sans-serif; }
+
+  /* ── Layout shell ── */
+  #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+  /* ── Header ── */
+  #header {
+    background: var(--navy);
+    color: #f8fafc;
+    padding: calc(var(--safe-top) + 12px) 20px 0;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  #header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  #header-title { font-family: 'DM Serif Display', serif; font-size: 26px; letter-spacing: -0.3px; line-height: 1; }
+  #header-sub { font-size: 12px; color: var(--slate); margin-top: 3px; }
+  #add-btn-header {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--blue);
+    border: none; color: #fff; font-size: 26px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(37,99,235,0.4); flex-shrink: 0;
+  }
+
+  /* Stat pills */
+  #stats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+  #stats::-webkit-scrollbar { display: none; }
+  .stat-pill { background: var(--navy2); border-radius: 20px; padding: 5px 12px; white-space: nowrap; flex-shrink: 0; }
+  .stat-pill .val { font-weight: 700; font-size: 15px; }
+  .stat-pill .lbl { font-size: 11px; color: var(--slate); margin-left: 4px; }
+
+  /* Tab bar */
+  #tabbar { display: flex; overflow-x: auto; scrollbar-width: none; padding-top: 4px; }
+  #tabbar::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 10px 16px; border: none; background: transparent; color: var(--slate);
+    font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    border-radius: 10px 10px 0 0; transition: all 0.15s;
+  }
+  .tab-btn.active { background: var(--bg); color: var(--navy); font-weight: 700; }
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #f59e0b; color: #fff; border-radius: 10px;
+    padding: 1px 6px; font-size: 10px; margin-left: 4px; font-weight: 700;
+  }
+
+  /* ── Content ── */
+  #content { flex: 1; overflow-y: auto; background: var(--bg); padding: 16px 16px calc(var(--safe-bot) + 20px); -webkit-overflow-scrolling: touch; }
+
+  /* ── Cards ── */
+  .task-card {
+    background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    border: 1px solid var(--border); border-left: 4px solid #e5e7eb;
+    transition: opacity 0.2s;
+  }
+  .task-card.done { opacity: 0.55; background: #f0fdf4; border-left-color: var(--green) !important; }
+  .task-card.pinned { border-color: #fbbf24; box-shadow: 0 0 0 2px #fbbf2430; }
+  .task-row { display: flex; gap: 10px; align-items: flex-start; }
+  .check-btn {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 2px solid #d1d5db;
+    background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #fff; margin-top: 1px; transition: all 0.15s;
+  }
+  .check-btn.checked { background: var(--green); border-color: var(--green); }
+  .task-text { flex: 1; font-size: 14px; line-height: 1.5; color: #111827; }
+  .task-text.done-text { text-decoration: line-through; color: var(--slate); }
+  .cat-pill { font-size: 10px; color: #fff; border-radius: 5px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; font-weight: 600; }
+  .star-btn { background: none; border: none; cursor: pointer; font-size: 18px; color: #d1d5db; flex-shrink: 0; padding: 0 2px; line-height: 1; }
+  .star-btn.starred { color: #f59e0b; }
+  .task-meta { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  .meta-select {
+    border: none; border-radius: 6px; padding: 3px 8px; font-size: 11px;
+    font-weight: 600; cursor: pointer; outline: none; background: transparent;
+  }
+  .time-pill { font-size: 11px; background: #f1f5f9; color: #475569; border-radius: 6px; padding: 3px 8px; }
+  .note-text { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* ── Collapsible group ── */
+  .group-header {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
+    border-left: 4px solid #e5e7eb; border-radius: 12px; cursor: pointer;
+    text-align: left; margin-bottom: 6px; transition: border-radius 0.1s;
+  }
+  .group-header.open { border-radius: 12px 12px 0 0; margin-bottom: 0; }
+  .group-title { font-weight: 700; font-size: 14px; flex: 1; }
+  .group-meta { font-size: 12px; color: var(--slate); }
+  .group-chevron { font-size: 11px; color: var(--muted); }
+  .group-body { background: #fafafa; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; padding: 10px 10px 4px; margin-bottom: 10px; }
+
+  /* ── Filters bar ── */
+  .filters { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter-select {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 13px; background: var(--card); flex-shrink: 0; outline: none; color: #374151;
+  }
+  .search-input {
+    flex: 1; min-width: 140px; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 10px; font-size: 14px; background: var(--card); outline: none; color: #111827;
+  }
+
+  /* ── Calendar ── */
+  .cal-pool { background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+  .cal-pool-label { font-size: 11px; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .cal-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cal-chip {
+    padding: 5px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    border: 2px solid transparent; font-weight: 500; max-width: 220px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: all 0.15s; user-select: none;
+  }
+  .cal-chip.tapping { border-color: #3b82f6 !important; background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .week-day {
+    background: var(--card); border-radius: 10px; padding: 8px 6px; border: 2px solid var(--border);
+    min-height: 90px; transition: border-color 0.15s;
+  }
+  .week-day.today { background: #eff6ff; border-color: #3b82f6; }
+  .week-day.tap-target { border-color: #93c5fd; cursor: pointer; background: #f0f9ff; }
+  .week-day-name { font-size: 11px; font-weight: 700; color: #374151; margin-bottom: 2px; }
+  .week-day-date { font-size: 10px; color: var(--muted); margin-bottom: 5px; }
+  .cal-task-chip {
+    font-size: 10px; border-radius: 5px; padding: 2px 5px; margin-bottom: 3px;
+    line-height: 1.3; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  }
+  .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .month-day-hdr { font-size: 10px; font-weight: 700; color: var(--muted); text-align: center; padding: 3px 0; }
+  .month-day {
+    background: var(--card); border-radius: 6px; padding: 4px; min-height: 56px;
+    border: 1px solid var(--border); transition: border-color 0.15s;
+  }
+  .month-day.out-month { opacity: 0.35; background: #f8f8f8; }
+  .month-day.today { background: #eff6ff; border-color: #3b82f6; }
+  .month-day.tap-target { border-color: #93c5fd; cursor: pointer; }
+  .month-day-num { font-size: 11px; color: #374151; margin-bottom: 2px; }
+  .month-task-bar { font-size: 9px; color: #fff; border-radius: 3px; padding: 1px 4px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .hint-text { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* ── Modal overlay ── */
+  #modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; flex-direction: column; background: var(--navy);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: calc(var(--safe-top) + 16px) 20px 16px;
+    border-bottom: 1px solid var(--navy2);
+  }
+  .modal-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--slate); }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: #f8fafc; margin-top: 2px; }
+  .modal-close {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--navy2);
+    border: none; color: var(--muted); font-size: 20px; cursor: pointer;
+  }
+  .modal-body { flex: 1; overflow-y: auto; padding: 20px; -webkit-overflow-scrolling: touch; }
+  .modal-footer { padding: 16px 20px calc(var(--safe-bot) + 16px); border-top: 1px solid var(--navy2); background: var(--navy); }
+
+  /* Modal inputs */
+  .intake-textarea {
+    width: 100%; padding: 14px; border: 1px solid var(--navy3); border-radius: 12px;
+    font-size: 16px; background: var(--navy2); color: #f1f5f9;
+    resize: none; outline: none; line-height: 1.6;
+  }
+  .classify-btn {
+    width: 100%; padding: 16px; font-size: 16px; font-weight: 700;
+    border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s;
+  }
+  .classify-btn:disabled { background: var(--navy3); color: var(--slate); cursor: default; }
+  .classify-btn:not(:disabled) { background: var(--blue); color: #fff; }
+  .confirm-btn { width: 100%; padding: 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 12px; cursor: pointer; background: var(--green); color: #fff; }
+
+  /* Preview cards */
+  .preview-section { background: var(--navy2); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+  .preview-label { font-size: 10px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip-option {
+    padding: 8px 12px; border-radius: 10px; border: 2px solid transparent;
+    background: var(--navy); color: var(--slate); font-size: 12px; cursor: pointer;
+    transition: all 0.12s; font-weight: 500;
+  }
+  .chip-option.selected { font-weight: 700; }
+  .priority-group { display: flex; gap: 8px; }
+  .priority-chip { flex: 1; padding: 11px 6px; border-radius: 10px; border: 2px solid transparent; background: var(--navy); color: var(--slate); font-size: 12px; cursor: pointer; font-weight: 500; text-align: center; }
+  .priority-chip.selected { font-weight: 700; }
+  .classify-header { font-size: 11px; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
+
+  /* Slider */
+  .time-slider { width: 100%; accent-color: var(--blue); }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--slate); margin-top: 4px; }
+
+  /* Empty states */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  /* Completed section toggle */
+  .completed-toggle { width: 100%; text-align: left; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--green); font-weight: 600; margin-top: 8px; }
+
+  /* iPad split-view hint */
+  @media (min-width: 768px) {
+    #content { padding: 20px 24px calc(var(--safe-bot) + 20px); }
+    .week-grid { gap: 8px; }
+    .week-day { min-height: 110px; padding: 10px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Fullscreen / iframe detection banner -->
+<div id="fullscreen-banner">
+  <div class="fs-icon">📋</div>
+  <div class="fs-title">Life Command Center</div>
+  <div class="fs-sub">For the best experience, open this app in its own Safari tab. Tap below to open it full screen.</div>
+  <button class="fs-btn" onclick="window.open(window.location.href,'_blank')">Open in Full Screen Tab ↗</button>
+  <button class="fs-btn-sec" onclick="document.getElementById('fullscreen-banner').classList.remove('show');document.getElementById('app').style.display='flex'">Continue in sidebar anyway</button>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="header">
+    <div id="header-top">
+      <div>
+        <div id="header-title">Life Triage</div>
+        <div id="header-sub" id="header-sub-text"></div>
+      </div>
+      <button id="add-btn-header" onclick="openAddModal()">+</button>
+    </div>
+    <div id="stats"></div>
+    <div id="tabbar"></div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="modal-overlay" style="display:none;">
+  <div class="modal-header">
+    <div>
+      <div class="modal-label">Smart Intake</div>
+      <div class="modal-title">Add New Task</div>
+    </div>
+    <button class="modal-close" onclick="closeAddModal()">✕</button>
+  </div>
+  <div class="modal-body" id="modal-body"></div>
+  <div class="modal-footer" id="modal-footer"></div>
+</div>
+
+<script>
+// ── Data & Constants ──────────────────────────────────────────────────────────
+const STORAGE_KEY = "life-triage-pwa-v1";
+const CATS = ["Finance & Legal","Cars","Home & Maintenance","Organization & Admin","Kids","Church","Personal Health & Growth","Social & Family","Professional & AI"];
+const PRIORITIES = [
+  { key:"immediate",  label:"Immediate / Urgent", color:"#dc2626", bg:"#fef2f2" },
+  { key:"next-month", label:"Next Month",          color:"#d97706", bg:"#fffbeb" },
+  { key:"long-term",  label:"Long Term",           color:"#6b7280", bg:"#f9fafb" },
+];
+const DELEGATES = [
+  { key:"myself",         label:"Myself" },
+  { key:"julia",          label:"Julia" },
+  { key:"the-kids",       label:"The Kids" },
+  { key:"cleaner",        label:"Prof. Cleaner" },
+  { key:"child-minder",   label:"Child Minder" },
+  { key:"exec-assistant", label:"Exec Assistant" },
+  { key:"handyman",       label:"Handyman" },
+  { key:"landscaper",     label:"Landscaper" },
+];
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const CAT_COLORS = {"Finance & Legal":"#1d4ed8","Cars":"#7c3aed","Home & Maintenance":"#92400e","Organization & Admin":"#0891b2","Kids":"#be185d","Church":"#b45309","Personal Health & Growth":"#059669","Social & Family":"#d97706","Professional & AI":"#4f46e5"};
+const DEL_COLORS = {myself:"#1d4ed8",julia:"#be185d","the-kids":"#7c3aed",cleaner:"#0891b2","child-minder":"#059669","exec-assistant":"#d97706",handyman:"#92400e",landscaper:"#15803d"};
+
+const SEED = [
+  {id:1,cat:"Finance & Legal",text:"Calculate total income over past 6 months, process tithing on Schwab + church website",priority:"immediate",delegate:"myself",mins:120,notes:"Pull statements, do math, execute transfers",pinned:false,done:false},
+  {id:2,cat:"Finance & Legal",text:"Determine overall financial status & allocable budget (travel, cars, landscaping, house, widgets)",priority:"immediate",delegate:"myself",mins:90,notes:"",pinned:false,done:false},
+  {id:3,cat:"Finance & Legal",text:"Wings Capital Wyoming financials filing",priority:"immediate",delegate:"myself",mins:60,notes:"Check if deadline-driven",pinned:false,done:false},
+  {id:4,cat:"Finance & Legal",text:"Itri Capital Utah financials filing",priority:"immediate",delegate:"myself",mins:60,notes:"Check if deadline-driven",pinned:false,done:false},
+  {id:5,cat:"Finance & Legal",text:"Annual attorney UT registration",priority:"immediate",delegate:"myself",mins:30,notes:"Likely has a hard deadline",pinned:false,done:false},
+  {id:6,cat:"Finance & Legal",text:"NY bar registration",priority:"immediate",delegate:"myself",mins:30,notes:"Verify deadline",pinned:false,done:false},
+  {id:7,cat:"Finance & Legal",text:"UK credit cards — identify open/outstanding, regain account access",priority:"immediate",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:8,cat:"Finance & Legal",text:"Map out & freeze credit for Julia and the kids",priority:"immediate",delegate:"exec-assistant",mins:15,notes:"You decide; EA does the paperwork",pinned:false,done:false},
+  {id:9,cat:"Finance & Legal",text:"Get up to date on medical bills",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"EA reconciles; you approve payments",pinned:false,done:false},
+  {id:10,cat:"Finance & Legal",text:"Julia's car registration",priority:"immediate",delegate:"exec-assistant",mins:10,notes:"",pinned:false,done:false},
+  {id:11,cat:"Finance & Legal",text:"Finish updating passwords",priority:"immediate",delegate:"myself",mins:45,notes:"",pinned:false,done:false},
+  {id:12,cat:"Finance & Legal",text:"Help parents update their passwords",priority:"next-month",delegate:"myself",mins:60,notes:"Hands-on session with them",pinned:false,done:false},
+  {id:13,cat:"Cars",text:"Test drive Range Rovers",priority:"next-month",delegate:"myself",mins:120,notes:"Half day with dealership",pinned:false,done:false},
+  {id:14,cat:"Cars",text:"Get financing for Range Rover",priority:"next-month",delegate:"myself",mins:60,notes:"After budget clarity",pinned:false,done:false},
+  {id:15,cat:"Cars",text:"Have Julia try out larger cars",priority:"next-month",delegate:"julia",mins:15,notes:"She drives, she decides",pinned:false,done:false},
+  {id:16,cat:"Cars",text:"Help Julia get financing & buy her new car",priority:"next-month",delegate:"myself",mins:90,notes:"Co-sign/support role",pinned:false,done:false},
+  {id:17,cat:"Home & Maintenance",text:"Finish front landscaping — pros + neighborhood kids (planting, hardscape, irrigation)",priority:"immediate",delegate:"landscaper",mins:30,notes:"Your time = final decisions and booking call",pinned:false,done:false},
+  {id:18,cat:"Home & Maintenance",text:"Finish mapping out irrigation plan",priority:"immediate",delegate:"landscaper",mins:20,notes:"Review + approve their plan",pinned:false,done:false},
+  {id:19,cat:"Home & Maintenance",text:"Pick pavers for front walkway",priority:"immediate",delegate:"julia",mins:10,notes:"She can decide this",pinned:false,done:false},
+  {id:20,cat:"Home & Maintenance",text:"Add mulching",priority:"next-month",delegate:"landscaper",mins:5,notes:"",pinned:false,done:false},
+  {id:21,cat:"Home & Maintenance",text:"Get fill dirt and topsoil",priority:"next-month",delegate:"landscaper",mins:5,notes:"",pinned:false,done:false},
+  {id:22,cat:"Home & Maintenance",text:"Get garden boxes for vegetables",priority:"next-month",delegate:"handyman",mins:10,notes:"",pinned:false,done:false},
+  {id:23,cat:"Home & Maintenance",text:"Install new hose",priority:"next-month",delegate:"handyman",mins:5,notes:"",pinned:false,done:false},
+  {id:24,cat:"Home & Maintenance",text:"Build gate between house and elder's house",priority:"next-month",delegate:"handyman",mins:15,notes:"Agree on spec + approve quote",pinned:false,done:false},
+  {id:25,cat:"Home & Maintenance",text:"Decide on deck extension, stair rework, concrete pour",priority:"next-month",delegate:"myself",mins:60,notes:"Get quotes, decide, authorize",pinned:false,done:false},
+  {id:26,cat:"Home & Maintenance",text:"Get built-ins complete in loft",priority:"next-month",delegate:"handyman",mins:15,notes:"",pinned:false,done:false},
+  {id:27,cat:"Home & Maintenance",text:"Put up curtains (bedroom, Jamie's room, main living spaces)",priority:"next-month",delegate:"handyman",mins:10,notes:"",pinned:false,done:false},
+  {id:28,cat:"Home & Maintenance",text:"Get a barbecue",priority:"next-month",delegate:"julia",mins:10,notes:"She researches, you approve budget",pinned:false,done:false},
+  {id:29,cat:"Home & Maintenance",text:"Get new desk for office",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"EA sources options; you pick one",pinned:false,done:false},
+  {id:30,cat:"Home & Maintenance",text:"Get rid of old bookshelves",priority:"next-month",delegate:"handyman",mins:5,notes:"Haul away",pinned:false,done:false},
+  {id:31,cat:"Home & Maintenance",text:"Get rid of old dresser from office",priority:"next-month",delegate:"handyman",mins:5,notes:"Haul away",pinned:false,done:false},
+  {id:32,cat:"Organization & Admin",text:"Organize the garage",priority:"next-month",delegate:"cleaner",mins:20,notes:"Walk-through to set priorities; cleaner executes",pinned:false,done:false},
+  {id:33,cat:"Organization & Admin",text:"Get office organized",priority:"next-month",delegate:"cleaner",mins:20,notes:"",pinned:false,done:false},
+  {id:34,cat:"Organization & Admin",text:"Pick up rug from Mary's house",priority:"next-month",delegate:"exec-assistant",mins:5,notes:"EA coordinates logistics",pinned:false,done:false},
+  {id:35,cat:"Organization & Admin",text:"Find additional help with kids to free up Julia's time",priority:"immediate",delegate:"exec-assistant",mins:20,notes:"EA researches + vets; you interview final candidates",pinned:false,done:false},
+  {id:36,cat:"Organization & Admin",text:"Find additional help for the yard",priority:"immediate",delegate:"exec-assistant",mins:15,notes:"EA gets quotes; you approve",pinned:false,done:false},
+  {id:37,cat:"Organization & Admin",text:"Find additional help for organization",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"Professional organizer",pinned:false,done:false},
+  {id:38,cat:"Organization & Admin",text:"Find additional help for planning",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"",pinned:false,done:false},
+  {id:39,cat:"Organization & Admin",text:"Find additional help for family admin",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"",pinned:false,done:false},
+  {id:40,cat:"Organization & Admin",text:"Do annual checkups (medical)",priority:"next-month",delegate:"exec-assistant",mins:10,notes:"EA books for whole family; you show up",pinned:false,done:false},
+  {id:41,cat:"Organization & Admin",text:"Learn how to delegate to an executive assistant",priority:"immediate",delegate:"myself",mins:60,notes:"Claude can help build your system",pinned:false,done:false},
+  {id:42,cat:"Organization & Admin",text:"Learn how to form and manage a virtual assistant",priority:"immediate",delegate:"myself",mins:90,notes:"Belay, Time Etc, Fancy Hands — pick a platform",pinned:false,done:false},
+  {id:43,cat:"Kids",text:"Get everything ready for boys' birthday parties",priority:"immediate",delegate:"child-minder",mins:30,notes:"Your time = approve theme/plan",pinned:false,done:false},
+  {id:44,cat:"Kids",text:"Get everything ready for Addison's birthday party",priority:"immediate",delegate:"child-minder",mins:30,notes:"",pinned:false,done:false},
+  {id:45,cat:"Kids",text:"Figure out boys' birthday presents",priority:"immediate",delegate:"julia",mins:15,notes:"She knows the kids best; you approve budget",pinned:false,done:false},
+  {id:46,cat:"Kids",text:"Get everything ready for Jackson's baptism",priority:"immediate",delegate:"myself",mins:180,notes:"You lead this — spiritual, logistical, relational",pinned:false,done:false},
+  {id:47,cat:"Kids",text:"Help kids succeed in sports, socially, academically — ongoing",priority:"immediate",delegate:"myself",mins:999,notes:"Ongoing presence — not a task, a commitment",pinned:false,done:false},
+  {id:48,cat:"Kids",text:"Identify tutoring & coaching opportunities",priority:"next-month",delegate:"exec-assistant",mins:15,notes:"EA researches + shortlists; you approve",pinned:false,done:false},
+  {id:49,cat:"Kids",text:"Identify other/better educational opportunities",priority:"next-month",delegate:"exec-assistant",mins:15,notes:"",pinned:false,done:false},
+  {id:50,cat:"Kids",text:"Figure out why kids have hard time connecting socially + improve it",priority:"next-month",delegate:"myself",mins:60,notes:"Reflection + potentially involve child therapist",pinned:false,done:false},
+  {id:51,cat:"Kids",text:"Get electric bike for Julia",priority:"next-month",delegate:"julia",mins:10,notes:"She picks it; you approve spend",pinned:false,done:false},
+  {id:52,cat:"Kids",text:"Get mountain bike for Jackson",priority:"next-month",delegate:"julia",mins:10,notes:"",pinned:false,done:false},
+  {id:53,cat:"Kids",text:"Get mountain bike for me",priority:"long-term",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:54,cat:"Kids",text:"Kids' trips",priority:"next-month",delegate:"exec-assistant",mins:20,notes:"EA researches options; you choose",pinned:false,done:false},
+  {id:55,cat:"Kids",text:"Eight-year-old trip",priority:"next-month",delegate:"myself",mins:60,notes:"You plan this one — it's relational",pinned:false,done:false},
+  {id:56,cat:"Kids",text:"Read books on raising healthy well-adapted kids",priority:"long-term",delegate:"myself",mins:300,notes:"Or ask Claude for key summaries",pinned:false,done:false},
+  {id:57,cat:"Church",text:"Reallocate class sizes/students for youth Sunday school + set up adult classes",priority:"immediate",delegate:"myself",mins:60,notes:"One meeting with presidency unlocks this",pinned:false,done:false},
+  {id:58,cat:"Church",text:"Get Sunday school class rolls going",priority:"immediate",delegate:"myself",mins:30,notes:"Delegate execution to presidency member after setup",pinned:false,done:false},
+  {id:59,cat:"Church",text:"Get presidency helping and dividing out tasks",priority:"immediate",delegate:"myself",mins:45,notes:"Leadership act — only you can do this",pinned:false,done:false},
+  {id:60,cat:"Church",text:"Order library materials",priority:"next-month",delegate:"myself",mins:20,notes:"Delegate to presidency member",pinned:false,done:false},
+  {id:61,cat:"Church",text:"Introduce myself to families I minister to",priority:"next-month",delegate:"myself",mins:120,notes:"Personal visits or calls",pinned:false,done:false},
+  {id:62,cat:"Church",text:"Have those families over for dinner",priority:"next-month",delegate:"julia",mins:30,notes:"You set dates; Julia coordinates logistics",pinned:false,done:false},
+  {id:63,cat:"Church",text:"Establish regular routine of connection",priority:"next-month",delegate:"myself",mins:30,notes:"",pinned:false,done:false},
+  {id:64,cat:"Church",text:"Find something for my ministers to do",priority:"next-month",delegate:"myself",mins:30,notes:"",pinned:false,done:false},
+  {id:65,cat:"Personal Health & Growth",text:"Get counseling and potentially medication for anxiety",priority:"immediate",delegate:"myself",mins:30,notes:"Book this week — highest leverage item on list",pinned:false,done:false},
+  {id:66,cat:"Personal Health & Growth",text:"Get to gym or run every single day",priority:"immediate",delegate:"myself",mins:45,notes:"Daily — non-negotiable",pinned:false,done:false},
+  {id:67,cat:"Personal Health & Growth",text:"Prepare for executive coaching session",priority:"immediate",delegate:"myself",mins:60,notes:"Claude can help you structure prep",pinned:false,done:false},
+  {id:68,cat:"Personal Health & Growth",text:"Learn to be a more successful leader",priority:"next-month",delegate:"myself",mins:120,notes:"Coaching + reading + reflection",pinned:false,done:false},
+  {id:69,cat:"Personal Health & Growth",text:"Learn how to problem-solve professionally",priority:"next-month",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:70,cat:"Personal Health & Growth",text:"Learn how to form relationships with adult men",priority:"next-month",delegate:"myself",mins:60,notes:"Counselor is the right tool here",pinned:false,done:false},
+  {id:71,cat:"Personal Health & Growth",text:"Lean into friendships with neighbors",priority:"next-month",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:72,cat:"Personal Health & Growth",text:"Go visit Mary in her new home",priority:"next-month",delegate:"myself",mins:120,notes:"Including travel",pinned:false,done:false},
+  {id:73,cat:"Personal Health & Growth",text:"Help mom use AI for temple shift planning",priority:"next-month",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:74,cat:"Personal Health & Growth",text:"Improve my golf game",priority:"long-term",delegate:"myself",mins:300,notes:"",pinned:false,done:false},
+  {id:75,cat:"Personal Health & Growth",text:"Solo trips",priority:"long-term",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:76,cat:"Social & Family",text:"Plan Jacob's bachelor party",priority:"next-month",delegate:"myself",mins:120,notes:"Claude can help with logistics",pinned:false,done:false},
+  {id:77,cat:"Social & Family",text:"Come up with summer plans (Tahoe, California, Vegas/Nick)",priority:"next-month",delegate:"exec-assistant",mins:30,notes:"EA researches options; you and Julia decide",pinned:false,done:false},
+  {id:78,cat:"Social & Family",text:"Plan cousin reunion for next year",priority:"long-term",delegate:"exec-assistant",mins:15,notes:"",pinned:false,done:false},
+  {id:79,cat:"Social & Family",text:"Plan trip with Andrew and Erica next year",priority:"long-term",delegate:"myself",mins:60,notes:"Relational planning",pinned:false,done:false},
+  {id:80,cat:"Professional & AI",text:"Cover for Trevor (paternity) + Jared (Sweden)",priority:"immediate",delegate:"myself",mins:999,notes:"Active ongoing — absorbing their workload",pinned:false,done:false},
+  {id:81,cat:"Professional & AI",text:"Get up to speed on AI for personal use (inbox, to-dos, mundane tasks)",priority:"immediate",delegate:"myself",mins:120,notes:"Claude, Superhuman, Copilot — start with one tool",pinned:false,done:false},
+  {id:82,cat:"Professional & AI",text:"Figure out Harvey AI, Claude Cowork, AI guardrails for office",priority:"next-month",delegate:"myself",mins:180,notes:"",pinned:false,done:false},
+  {id:83,cat:"Professional & AI",text:"Figure out AI governance standards for legal & broader org",priority:"next-month",delegate:"myself",mins:120,notes:"Delegate drafting to team once framework set",pinned:false,done:false},
+  {id:84,cat:"Professional & AI",text:"Identify core AI projects for own workflows + team",priority:"next-month",delegate:"myself",mins:90,notes:"",pinned:false,done:false},
+  {id:85,cat:"Professional & AI",text:"Learn how to use AI agents",priority:"next-month",delegate:"myself",mins:120,notes:"",pinned:false,done:false},
+  {id:86,cat:"Professional & AI",text:"Figure out how to improve the procurement team",priority:"next-month",delegate:"myself",mins:90,notes:"",pinned:false,done:false},
+  {id:87,cat:"Professional & AI",text:"Brainstorm how to add value to Velocity if not doing legal drafting",priority:"next-month",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:88,cat:"Professional & AI",text:"Make meaningful professional connections inside Bridge",priority:"next-month",delegate:"myself",mins:60,notes:"",pinned:false,done:false},
+  {id:89,cat:"Professional & AI",text:"Build Travelist app (side hustle)",priority:"long-term",delegate:"myself",mins:600,notes:"Claude Code / Cursor when bandwidth exists",pinned:false,done:false},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = { todos: [], calMap: {}, nextId: 200 };
+let activeTab = 0;
+let calTapMode = null; // task id being tapped-to-assign
+let dragId = null;
+let showCompleted = false;
+let filters = { search: "", cat: "All", priority: "all", delegate: "all" };
+let modalPreview = null;
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      state.todos  = p.todos  || SEED;
+      state.calMap = p.calMap || {};
+      state.nextId = Math.max(...state.todos.map(t => t.id)) + 1;
+    } else {
+      state.todos  = JSON.parse(JSON.stringify(SEED));
+      state.nextId = 200;
+    }
+  } catch { state.todos = JSON.parse(JSON.stringify(SEED)); }
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ todos: state.todos, calMap: state.calMap })); } catch {}
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtTime = m => m >= 999 ? "Ongoing" : m < 60 ? `${m}m` : m % 60 === 0 ? `${m/60}h` : `${Math.floor(m/60)}h ${m%60}m`;
+const pInfo   = k => PRIORITIES.find(p => p.key === k) || {};
+const dLabel  = k => (DELEGATES.find(d => d.key === k) || {}).label || k;
+const totalMins = items => items.filter(t => t.mins < 999).reduce((s,t) => s+t.mins, 0);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function getWeekDates() {
+  const now = new Date(); const day = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  return Array.from({length:7},(_,i) => { const d = new Date(mon); d.setDate(mon.getDate()+i); return d; });
+}
+function getMonthDates() {
+  const now = new Date(); const year = now.getFullYear(), month = now.getMonth();
+  const first = new Date(year,month,1), last = new Date(year,month+1,0);
+  const days = [];
+  const startPad = (first.getDay()+6)%7;
+  for(let i=startPad;i>0;i--){ const d=new Date(first); d.setDate(d.getDate()-i); days.push({date:d,inMonth:false}); }
+  for(let i=1;i<=last.getDate();i++) days.push({date:new Date(year,month,i),inMonth:true});
+  const endPad = 7-(days.length%7||7);
+  for(let i=1;i<=endPad;i++){ const d=new Date(last); d.setDate(last.getDate()+i); days.push({date:d,inMonth:false}); }
+  return days;
+}
+const dateKey = d => d.toISOString().slice(0,10);
+const todayKey = dateKey(new Date());
+const fmtMD = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+
+// ── Smart Classifier ──────────────────────────────────────────────────────────
+function smartClassify(raw) {
+  const t = raw.toLowerCase();
+  const catRules = [
+    {cat:"Finance & Legal",words:["tithe","tithing","budget","financ","invest","tax","bill","credit","debt","bank","schwab","money","account","payment","insurance","legal","attorney","bar registration","filing","llc","capital","income","expense","password","fee","wire","transfer","registration","mortgage"]},
+    {cat:"Cars",words:["car","vehicle","range rover","truck","suv","drive","test drive","financing","auto","dealership","lease","mileage","oil change","tire","dmv"]},
+    {cat:"Home & Maintenance",words:["house","home","yard","garden","landscap","mulch","irrigation","paver","walkway","deck","concrete","stairs","gate","fence","curtain","paint","roof","gutter","plumb","hose","dirt","topsoil","garage","basement","loft","built-in","bookshelf","dresser","desk","barbecue","grill","shed"]},
+    {cat:"Organization & Admin",words:["organiz","clean","declutter","sort","rug","pickup","hire","find help","assistant","va ","virtual assistant","delegate","schedule","book appointment","admin","system","checklist","calendar","reminder","routine"]},
+    {cat:"Kids",words:["kid","child","son","daughter","jacob","addison","jackson","jamie","boy","girl","school","tutor","coach","sport","soccer","baseball","basketball","swim","birthday","party","baptism","homework","grade","teacher","class","backpack","camp","playdate","social","friend","bike"]},
+    {cat:"Church",words:["church","sunday","sacrament","ward","bishop","presidency","minister","temple","lesson","class","roll","library","faith","prayer","scripture","covenant","mission","relief society","priesthood","young men","young women","primary","gospel"]},
+    {cat:"Personal Health & Growth",words:["gym","run","workout","exercise","counseling","therapy","therapist","anxiety","mental health","medication","doctor","health","golf","read","book","learn","study","course","coach","leadership","grow","habit","meditat","sleep","diet","nutrition","solo trip","retreat","journal"]},
+    {cat:"Social & Family",words:["party","gather","visit","reunion","trip","travel","vacation","tahoe","california","vegas","bachelor","wedding","dinner","neighbor","friend","andrew","erica","nick","mary","mom","dad","parent","family","cousin","sibling"]},
+    {cat:"Professional & AI",words:["work","office","meeting","email","slack","ai","claude","harvey","copilot","agent","llm","legal tech","procurement","team","hire","velocity","bridge","governance","workflow","project","presentation","strategy","client","contract","draft","review","proposal","executive coach","coaching"]},
+  ];
+  let cat="Organization & Admin",catScore=-1;
+  for(const r of catRules){ const s=r.words.filter(w=>t.includes(w)).length; if(s>catScore){catScore=s;cat=r.cat;} }
+  const immWords=["urgent","asap","immediately","deadline","today","this week","overdue","registration","bar","attorney","baptism","birthday","party","filing","cover for","bill","credit freeze","password","cancel","expire","book appointment","counseling","anxiety","coach session"];
+  const ltWords=["next year","someday","eventually","long term","future","one day","when i have time","side hustle","travelist","golf","solo trip","reunion","retire","book","read","learn to"];
+  let priority="next-month";
+  if(immWords.some(w=>t.includes(w))) priority="immediate";
+  else if(ltWords.some(w=>t.includes(w))) priority="long-term";
+  const eaW=["research","find","schedule","book","appointment","coordinate","organiz","look up","compare","shortlist","vet","source","order","track","register","renew","follow up","remind","pickup","arrange","get quotes","plan summer","plan trip","plan reunion"];
+  const hdW=["install","fix","repair","build","hang","mount","replace","haul","remove","put up","assemble","patch","drill","attach","gate","curtain","shelf","bookshelf","dresser","built-in","hose"];
+  const ydW=["mow","mulch","irrigat","landscap","plant","seed","prune","trim","fertiliz","topsoil","dirt","paver","walkway","yard","lawn"];
+  const clW=["clean","organiz garage","organiz office","declutter","deep clean","tidy"];
+  const jlW=["julia","with julia","julia's","julia decide","julia pick"];
+  const mdW=["birthday party","addison party","boys party","kids party","pick up kids","drop off","after school"];
+  let delegate="myself";
+  if(jlW.some(w=>t.includes(w))) delegate="julia";
+  else if(mdW.some(w=>t.includes(w))) delegate="child-minder";
+  else if(ydW.some(w=>t.includes(w))) delegate="landscaper";
+  else if(hdW.some(w=>t.includes(w))) delegate="handyman";
+  else if(clW.some(w=>t.includes(w))) delegate="cleaner";
+  else if(eaW.some(w=>t.includes(w))) delegate="exec-assistant";
+  const minsMap=[{words:["call","email","text","message","quick"],mins:15},{words:["appointment","book","schedule","register","renew","order"],mins:20},{words:["research","find","look up","compare","shortlist"],mins:30},{words:["meeting","session","coaching","counseling","therapy"],mins:60},{words:["plan","strategy","figure out","brainstorm","learn"],mins:60},{words:["trip","travel","vacation","party","event"],mins:90},{words:["install","build","fix","repair","organiz"],mins:120},{words:["read","course","study","deep dive"],mins:180},{words:["ongoing","daily","every day","routine","habit"],mins:999}];
+  let mins=30;
+  for(const m of minsMap){ if(m.words.some(w=>t.includes(w))){ mins=m.mins; break; } }
+  if(delegate!=="myself"&&mins<999) mins=Math.max(10,Math.round(mins*0.2));
+  const noteMap={myself:"","exec-assistant":"EA handles research/logistics; you approve","landscaper":"Get quotes first; you approve scope","handyman":"Agree on spec; handyman executes","cleaner":"Walk through priorities; cleaner executes","julia":"Julia leads; coordinate together","child-minder":"Child minder handles logistics"};
+  return {cat,priority,delegate,mins,notes:noteMap[delegate]||""};
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function taskCardHTML(t) {
+  const p = pInfo(t.priority);
+  const cc = CAT_COLORS[t.cat] || "#374151";
+  const dc = DEL_COLORS[t.delegate] || "#6b7280";
+  return `
+    <div class="task-card${t.done?' done':''}${t.pinned?' pinned':''}" style="border-left-color:${t.done?'#16a34a':p.color||'#e5e7eb'}">
+      <div class="task-row">
+        <button class="check-btn${t.done?' checked':''}" onclick="toggleDone(${t.id})">${t.done?'✓':''}</button>
+        <span class="task-text${t.done?' done-text':''}">${esc(t.text)}</span>
+        <span class="cat-pill" style="background:${cc}">${esc(t.cat)}</span>
+        <button class="star-btn${t.pinned?' starred':''}" onclick="togglePin(${t.id})">${t.pinned?'★':'☆'}</button>
+      </div>
+      <div class="task-meta">
+        <select class="meta-select" style="background:${p.color||'#6b7280'}18;color:${p.color||'#6b7280'}" onchange="updateTask(${t.id},'priority',this.value)">
+          ${PRIORITIES.map(pr=>`<option value="${pr.key}"${t.priority===pr.key?' selected':''}>${pr.label}</option>`).join('')}
+        </select>
+        <select class="meta-select" style="background:${dc}18;color:${dc}" onchange="updateTask(${t.id},'delegate',this.value)">
+          ${DELEGATES.map(d=>`<option value="${d.key}"${t.delegate===d.key?' selected':''}>${d.label}</option>`).join('')}
+        </select>
+        <span class="time-pill">⏱ ${fmtTime(t.mins)}</span>
+        ${t.notes?`<span class="note-text">${esc(t.notes)}</span>`:''}
+      </div>
+    </div>`;
+}
+
+function collapsibleGroupHTML(title, items, color, openByDefault=false) {
+  const id = 'grp-' + title.replace(/\W/g,'_');
+  const isOpen = document.getElementById(id+'_open') ? document.getElementById(id+'_open').value==='1' : openByDefault;
+  const tm = totalMins(items);
+  return `
+    <div>
+      <button class="group-header${isOpen?' open':''}" style="border-left-color:${color}" onclick="toggleGroup('${id}')">
+        <span class="group-title" style="color:${color}">${esc(title)}</span>
+        <span class="group-meta">${items.length} · ${fmtTime(tm)}</span>
+        <span class="group-chevron" id="${id}_chevron">${isOpen?'▲':'▼'}</span>
+      </button>
+      <input type="hidden" id="${id}_open" value="${isOpen?'1':'0'}">
+      <div id="${id}_body" class="group-body" style="display:${isOpen?'block':'none'}">
+        ${items.map(taskCardHTML).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Tab renderers ─────────────────────────────────────────────────────────────
+function renderQueue() {
+  const pinned = state.todos.filter(t => !t.done && t.pinned);
+  const done   = state.todos.filter(t => t.done);
+  let html = '';
+  if (!pinned.length) {
+    html += `<div class="empty-state"><div class="empty-icon">☆</div><div class="empty-title">Priority queue is empty</div><div class="empty-sub">Tap ☆ on any task to queue it for the next few days.</div></div>`;
+  } else {
+    html += `<div style="margin-bottom:12px;padding:12px 14px;background:#fffbeb;border-radius:12px;border:1px solid #fbbf24;font-size:13px;color:#92400e;">★ Your next few days — ${pinned.length} tasks · ${fmtTime(totalMins(pinned))} estimated</div>`;
+    html += pinned.map(taskCardHTML).join('');
+  }
+  if (done.length) {
+    html += `<div style="margin-top:20px;">
+      <button class="completed-toggle" onclick="showCompleted=!showCompleted;renderContent()">
+        ${showCompleted ? '▲ Hide' : '▼ Show'} Completed (${done.length}) — tap any to restore
+      </button>
+      ${showCompleted ? `<div style="margin-top:8px;">${done.map(taskCardHTML).join('')}</div>` : ''}
+    </div>`;
+  }
+  return html;
+}
+
+function renderAll() {
+  const active = state.todos.filter(t => {
+    if(t.done) return false;
+    if(filters.cat !== "All" && t.cat !== filters.cat) return false;
+    if(filters.priority !== "all" && t.priority !== filters.priority) return false;
+    if(filters.delegate !== "all" && t.delegate !== filters.delegate) return false;
+    if(filters.search && !t.text.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    return true;
+  });
+  const done = state.todos.filter(t => t.done);
+  return `
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input class="search-input" type="search" placeholder="🔍 Search tasks…" value="${esc(filters.search)}" oninput="filters.search=this.value;renderContent()">
+    </div>
+    <div class="filters">
+      <select class="filter-select" onchange="filters.cat=this.value;renderContent()">
+        <option value="All"${filters.cat==="All"?" selected":""}>All Categories</option>
+        ${CATS.map(c=>`<option${filters.cat===c?" selected":""}>${esc(c)}</option>`).join('')}
+      </select>
+      <select class="filter-select" onchange="filters.priority=this.value;renderContent()">
+        <option value="all"${filters.priority==="all"?" selected":""}>All Priorities</option>
+        ${PRIORITIES.map(p=>`<option value="${p.key}"${filters.priority===p.key?" selected":""}>${p.label}</option>`).join('')}
+      </select>
+      <select class="filter-select" onchange="filters.delegate=this.value;renderContent()">
+        <option value="all"${filters.delegate==="all"?" selected":""}>All Owners</option>
+        ${DELEGATES.map(d=>`<option value="${d.key}"${filters.delegate===d.key?" selected":""}>${d.label}</option>`).join('')}
+      </select>
+    </div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">${active.length} tasks · ${fmtTime(totalMins(active))}</div>
+    ${active.map(taskCardHTML).join('')}
+    ${done.length?`<div style="margin-top:20px;"><button class="completed-toggle" onclick="showCompleted=!showCompleted;renderContent()">${showCompleted?'▲ Hide':'▼ Show'} Completed (${done.length}) — tap any to restore</button>${showCompleted?`<div style="margin-top:8px">${done.map(taskCardHTML).join('')}</div>`:''}</div>`:''}`;
+}
+
+function renderByDimension(groups) {
+  return groups.map(g => {
+    if(!g.items.length) return '';
+    return collapsibleGroupHTML(g.title, g.items, g.color, g.open||false);
+  }).join('');
+}
+
+function renderWeek() {
+  const weekDates = getWeekDates();
+  const allActive = state.todos.filter(t => !t.done);
+  const assignedIds = new Set(Object.values(state.calMap).flat());
+  const unscheduled = allActive.filter(t => !assignedIds.has(t.id));
+  const isTapping = calTapMode !== null;
+  const tappingTask = isTapping ? state.todos.find(t => t.id === calTapMode) : null;
+
+  let html = `<div class="cal-pool">
+    <div class="cal-pool-label">Unscheduled${isTapping?` — tap a day to assign "${tappingTask ? tappingTask.text.slice(0,30)+'…' : ''}"`:' — tap to select, then tap a day'}</div>
+    <div class="cal-chips">`;
+  for(const t of unscheduled) {
+    const p = pInfo(t.priority);
+    const isTap = calTapMode === t.id;
+    html += `<div class="cal-chip${isTap?' tapping':''}" style="background:${isTap?'#dbeafe':p.bg};color:${isTap?'#1d4ed8':p.color};border-color:${isTap?'#3b82f6':p.color+'40'}" onclick="calTap(${t.id})" draggable="true" ondragstart="dragId=${t.id}" ondragend="dragId=null">
+      ${esc(t.text.length>36?t.text.slice(0,36)+'…':t.text)}
+    </div>`;
+  }
+  if(!unscheduled.length) html += `<span style="font-size:12px;color:#9ca3af;">All tasks scheduled ✓</span>`;
+  html += `</div></div>`;
+
+  html += `<div class="week-grid">`;
+  for(let i=0;i<7;i++) {
+    const date = weekDates[i];
+    const key = dateKey(date);
+    const isToday = key === todayKey;
+    const assignedIds2 = (state.calMap[key]||[]);
+    const assigned = assignedIds2.map(id=>state.todos.find(t=>t.id===id)).filter(Boolean);
+    html += `<div class="week-day${isToday?' today':''}${isTapping?' tap-target':''}"
+      ondragover="event.preventDefault()" ondrop="dropOnDay('${key}')"
+      onclick="tapDay('${key}')">
+      <div class="week-day-name">${DAYS[i]}</div>
+      <div class="week-day-date">${fmtMD(date)}</div>`;
+    for(const t of assigned) {
+      const p = pInfo(t.priority);
+      html += `<div class="cal-task-chip" style="background:${p.bg};color:${p.color};border:1px solid ${p.color}30" onclick="event.stopPropagation();unassign(${t.id},'${key}')">
+        <span>${esc(t.text.slice(0,20))}${t.text.length>20?'…':''}</span>
+        <span style="opacity:0.6;margin-left:3px">✕</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div><p class="hint-text">Tap a task chip then tap a day. Drag on desktop. Tap calendar items to remove.</p>`;
+  return html;
+}
+
+function renderMonth() {
+  const monthDays = getMonthDates();
+  const now = new Date();
+  const monthName = now.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  const allActive = state.todos.filter(t => !t.done);
+  const assignedIds = new Set(Object.values(state.calMap).flat());
+  const unscheduled = allActive.filter(t => !assignedIds.has(t.id));
+  const isTapping = calTapMode !== null;
+  const tappingTask = isTapping ? state.todos.find(t => t.id === calTapMode) : null;
+
+  let html = `<div style="font-family:'DM Serif Display',serif;font-size:20px;color:#111827;margin-bottom:12px;">${monthName}</div>`;
+  html += `<div class="cal-pool">
+    <div class="cal-pool-label">Unscheduled${isTapping?` — tap a day for "${tappingTask?tappingTask.text.slice(0,25)+'…':''}"`:''}
+    </div><div class="cal-chips">`;
+  for(const t of unscheduled) {
+    const p = pInfo(t.priority); const isTap = calTapMode===t.id;
+    html += `<div class="cal-chip${isTap?' tapping':''}" style="background:${isTap?'#dbeafe':p.bg};color:${isTap?'#1d4ed8':p.color};border-color:${isTap?'#3b82f6':p.color+'40'}" onclick="calTap(${t.id})" draggable="true" ondragstart="dragId=${t.id}" ondragend="dragId=null">
+      ${esc(t.text.length>28?t.text.slice(0,28)+'…':t.text)}
+    </div>`;
+  }
+  if(!unscheduled.length) html += `<span style="font-size:11px;color:#9ca3af;">All scheduled ✓</span>`;
+  html += `</div></div>`;
+
+  html += `<div class="month-grid">`;
+  for(const d of DAYS) html += `<div class="month-day-hdr">${d}</div>`;
+  for(const {date, inMonth} of monthDays) {
+    const key = dateKey(date); const isToday = key===todayKey;
+    const assigned = (state.calMap[key]||[]).map(id=>state.todos.find(t=>t.id===id)).filter(Boolean);
+    html += `<div class="month-day${!inMonth?' out-month':''}${isToday?' today':''}${isTapping&&inMonth?' tap-target':''}"
+      ondragover="event.preventDefault()" ondrop="dropOnDay('${key}')"
+      onclick="${inMonth?`tapDay('${key}')`:''}">
+      <div class="month-day-num" style="font-weight:${isToday?700:400};color:${isToday?'#1d4ed8':'#374151'}">${date.getDate()}</div>`;
+    for(const t of assigned.slice(0,2)) {
+      const cc = CAT_COLORS[t.cat]||'#374151';
+      html += `<div class="month-task-bar" style="background:${cc}" onclick="event.stopPropagation();unassign(${t.id},'${key}')" title="${esc(t.text)}">${esc(t.text.slice(0,13))}${t.text.length>13?'…':''}</div>`;
+    }
+    if(assigned.length>2) html += `<div style="font-size:9px;color:#9ca3af;">+${assigned.length-2}</div>`;
+    html += `</div>`;
+  }
+  html += `</div><p class="hint-text">Tap a chip then tap a day. Drag on desktop. Tap bars to remove.</p>`;
+  return html;
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderHeader() {
+  const active = state.todos.filter(t=>!t.done);
+  const done   = state.todos.filter(t=>t.done);
+  const pinned = active.filter(t=>t.pinned);
+  const myImm  = active.filter(t=>t.priority==="immediate"&&t.delegate==="myself");
+  document.getElementById('header-sub').textContent = `${active.length} active · ${done.length} done · ${pinned.length} queued`;
+  document.getElementById('stats').innerHTML = [
+    {label:"Immediate",val:fmtTime(totalMins(myImm)),color:"#ef4444"},
+    {label:"In Queue",val:pinned.length,color:"#f59e0b"},
+    {label:"Done",val:done.length,color:"#22c55e"},
+    {label:"Delegated",val:active.filter(t=>t.delegate!=="myself").length,color:"#a78bfa"},
+  ].map(s=>`<div class="stat-pill"><span class="val" style="color:${s.color}">${s.val}</span><span class="lbl">${s.label}</span></div>`).join('');
+}
+
+const TABS = [
+  {label:"⚡ Queue"},
+  {label:"All"},
+  {label:"Category"},
+  {label:"Priority"},
+  {label:"Delegate"},
+  {label:"📅 Week"},
+  {label:"🗓 Month"},
+];
+function renderTabbar() {
+  const pinned = state.todos.filter(t=>!t.done&&t.pinned).length;
+  document.getElementById('tabbar').innerHTML = TABS.map((t,i)=>`
+    <button class="tab-btn${activeTab===i?' active':''}" onclick="switchTab(${i})">
+      ${t.label}${i===0&&pinned?`<span class="badge">${pinned}</span>`:''}
+    </button>`).join('');
+}
+
+function renderContent() {
+  const active = state.todos.filter(t=>!t.done);
+  let html = '';
+  if      (activeTab===0) html = renderQueue();
+  else if (activeTab===1) html = renderAll();
+  else if (activeTab===2) html = renderByDimension(CATS.map(c=>({title:c,items:active.filter(t=>t.cat===c),color:CAT_COLORS[c]||'#374151'})));
+  else if (activeTab===3) html = renderByDimension(PRIORITIES.map(p=>({title:p.label,items:active.filter(t=>t.priority===p.key),color:p.color,open:p.key==="immediate"})));
+  else if (activeTab===4) html = renderByDimension(DELEGATES.map(d=>({title:d.label,items:active.filter(t=>t.delegate===d.key),color:DEL_COLORS[d.key]||'#6b7280',open:d.key==="myself"})));
+  else if (activeTab===5) html = renderWeek();
+  else if (activeTab===6) html = renderMonth();
+  document.getElementById('content').innerHTML = html;
+}
+
+function render() {
+  renderHeader();
+  renderTabbar();
+  renderContent();
+}
+
+// ── Interactions ──────────────────────────────────────────────────────────────
+function switchTab(i) { activeTab=i; calTapMode=null; render(); }
+
+function toggleGroup(id) {
+  const body = document.getElementById(id+'_body');
+  const inp  = document.getElementById(id+'_open');
+  const chev = document.getElementById(id+'_chevron');
+  const hdr  = body.previousElementSibling;
+  if(body.style.display==='none') { body.style.display='block'; inp.value='1'; chev.textContent='▲'; hdr.classList.add('open'); }
+  else { body.style.display='none'; inp.value='0'; chev.textContent='▼'; hdr.classList.remove('open'); }
+}
+
+function updateTask(id, field, value) {
+  const t = state.todos.find(t=>t.id===id);
+  if(t) { t[field]=value; saveState(); renderHeader(); renderTabbar(); }
+}
+
+function toggleDone(id) {
+  const t = state.todos.find(t=>t.id===id);
+  if(t) { t.done=!t.done; saveState(); render(); }
+}
+
+function togglePin(id) {
+  const t = state.todos.find(t=>t.id===id);
+  if(t) { t.pinned=!t.pinned; saveState(); render(); }
+}
+
+function calTap(id) {
+  calTapMode = calTapMode===id ? null : id;
+  renderContent();
+}
+
+function tapDay(key) {
+  if(calTapMode===null) return;
+  assignToDay(calTapMode, key);
+  calTapMode=null;
+  renderContent();
+}
+
+function dropOnDay(key) {
+  if(dragId) { assignToDay(dragId, key); dragId=null; renderContent(); }
+}
+
+function assignToDay(taskId, key) {
+  Object.keys(state.calMap).forEach(k=>{ state.calMap[k]=(state.calMap[k]||[]).filter(id=>id!==taskId); });
+  if(!state.calMap[key]) state.calMap[key]=[];
+  state.calMap[key].push(taskId);
+  saveState();
+}
+
+function unassign(taskId, key) {
+  state.calMap[key]=(state.calMap[key]||[]).filter(id=>id!==taskId);
+  saveState(); renderContent();
+}
+
+// ── Add Task Modal ────────────────────────────────────────────────────────────
+function openAddModal() {
+  modalPreview=null;
+  document.getElementById('modal-overlay').style.display='flex';
+  renderModalStep1();
+}
+
+function closeAddModal() {
+  document.getElementById('modal-overlay').style.display='none';
+  modalPreview=null;
+}
+
+function renderModalStep1() {
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:14px;color:#64748b;margin-bottom:18px;line-height:1.6;">Describe your task naturally. It'll be sorted into the right category, priority, and owner automatically. Adjust anything before confirming.</p>
+    <textarea class="intake-textarea" id="task-input" rows="5" placeholder="e.g. Schedule dentist checkups for the kids before school starts…" autofocus></textarea>
+    <div id="classify-error" style="margin-top:10px;display:none;background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;"></div>`;
+  document.getElementById('modal-footer').innerHTML = `<button class="classify-btn" id="classify-btn" onclick="doClassify()">✦ Classify</button>`;
+  setTimeout(()=>{ const ta=document.getElementById('task-input'); if(ta) ta.focus(); },100);
+}
+
+function doClassify() {
+  const input = (document.getElementById('task-input')||{}).value||'';
+  if(!input.trim()) return;
+  modalPreview = { ...smartClassify(input.trim()), text: input.trim() };
+  renderModalStep2();
+}
+
+function renderModalStep2() {
+  const p = modalPreview;
+  const pp = pInfo(p.priority);
+  document.getElementById('modal-body').innerHTML = `
+    <div class="preview-section" style="margin-bottom:16px;">
+      <div class="preview-label">Your task</div>
+      <div style="font-size:14px;color:#f1f5f9;line-height:1.5;">${esc(p.text)}</div>
+    </div>
+    <div class="classify-header">✦ Adjust Before Confirming</div>
+
+    <div class="preview-section">
+      <div class="preview-label">Category</div>
+      <div class="chip-group">
+        ${CATS.map(c=>`<button class="chip-option${p.cat===c?' selected':''}" style="${p.cat===c?`border-color:${CAT_COLORS[c]};background:${CAT_COLORS[c]}22;color:${CAT_COLORS[c]}`:''}" onclick="previewUpdate('cat','${c}');renderModalStep2()">${esc(c)}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="preview-section" style="margin-top:10px;">
+      <div class="preview-label">Priority</div>
+      <div class="priority-group">
+        ${PRIORITIES.map(pr=>`<button class="priority-chip${p.priority===pr.key?' selected':''}" style="${p.priority===pr.key?`border-color:${pr.color};background:${pr.color}22;color:${pr.color}`:''}" onclick="previewUpdate('priority','${pr.key}');renderModalStep2()">${pr.key==='immediate'?'🔴 Immediate':pr.key==='next-month'?'🟡 Next Month':'⚪ Long Term'}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="preview-section" style="margin-top:10px;">
+      <div class="preview-label">Assign to</div>
+      <div class="chip-group">
+        ${DELEGATES.map(d=>`<button class="chip-option${p.delegate===d.key?' selected':''}" style="${p.delegate===d.key?`border-color:${DEL_COLORS[d.key]};background:${DEL_COLORS[d.key]}22;color:${DEL_COLORS[d.key]}`:''}" onclick="previewUpdate('delegate','${d.key}');renderModalStep2()">${d.label}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="preview-section" style="margin-top:10px;">
+      <div class="preview-label">Your time — <strong style="color:#f1f5f9">${fmtTime(p.mins>=999?300:p.mins)}</strong></div>
+      <input type="range" class="time-slider" min="5" max="300" step="5" value="${p.mins>=999?300:p.mins}" oninput="previewUpdate('mins',parseInt(this.value));document.getElementById('time-lbl').textContent=fmtTime(parseInt(this.value))">
+      <div class="slider-labels"><span>5m</span><span>1h</span><span>2h</span><span>3h</span><span>5h</span></div>
+    </div>
+
+    <button onclick="modalPreview=null;renderModalStep1()" style="background:none;border:none;color:#475569;font-size:13px;cursor:pointer;margin-top:12px;text-decoration:underline;">← Start over</button>`;
+
+  document.getElementById('modal-footer').innerHTML = `<button class="confirm-btn" onclick="confirmAdd()">✓ Add to List</button>`;
+}
+
+function previewUpdate(field, value) { if(modalPreview) modalPreview[field]=field==='mins'?parseInt(value):value; }
+
+function confirmAdd() {
+  if(!modalPreview) return;
+  state.todos.push({ ...modalPreview, id: state.nextId++, pinned:false, done:false });
+  saveState();
+  closeAddModal();
+  render();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+loadState();
+render();
+</script>
+
+<script>
+// Detect if running in iframe (Claude sidebar) and show fullscreen prompt
+(function() {
+  try {
+    if (window.self !== window.top) {
+      // We're in an iframe
+      document.getElementById('fullscreen-banner').classList.add('show');
+    } else {
+      // Standalone — show app normally
+      document.getElementById('app').style.display = 'flex';
+    }
+  } catch(e) {
+    // Cross-origin check blocked — assume iframe
+    document.getElementById('fullscreen-banner').classList.add('show');
+  }
+})();
+</script>
+
+</body>
+</html>
